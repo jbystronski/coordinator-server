@@ -36,7 +36,7 @@ func (c *Coordinator) readPump(client *node.Client) {
 		switch m.Type {
 		case "ack":
 			c.handleAck(client.ID, m.EventID)
-		case "nodeMesage":
+		case "nodeMessage":
 			c.forwardToNode(m)
 		}
 
