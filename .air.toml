@@ -1,0 +1,27 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+buildvcs = false
+cmd = "go build -buildvcs=false -o ./tmp/main ."
+bin = "tmp/main"
+include_ext = ["go"]
+exclude_dir = ["vendor", "tmp"]
+exclude_file = []
+exclude_regex = []
+exclude_unchanged = false
+follow_symlink = false
+full_bin = ""
+log = "build-errors.log"
+
+[log]
+time = true
+
+[color]
+main = "cyan"
+watcher = "yellow"
+build = "green"
+runner = "magenta"
+
+[misc]
+clean_on_exit = true

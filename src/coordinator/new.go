@@ -1,16 +1,24 @@
 package coordinator
 
 import (
+	"coordinator/src/event"
+	"coordinator/src/node"
+	"coordinator/src/utils"
+	"time"
+
 	"github.com/gorilla/websocket"
 )
 
-func NewCoordinator(upgrader *websocket.Upgrader) *Coordinator {
+func NewCoordinator(upgrader *websocket.Upgrader, store *event.Store) *Coordinator {
+	maxPending := utils.GetIntEnv("COORDINATOR_MAX_PENDING", 1000)
 	return &Coordinator{
-		nodes:      make(map[string]*NodeClient),
+		nodes:      make(map[string]*node.Client),
 		upgrader:   upgrader,
-		inFlight:   make(map[string]InFlightEvent),
-		pending:    []Event{},
+		inFlight:   make(map[string]event.InFlightEvent),
+		pending:    []event.Event{},
 		lastIndex:  0,
-		maxPending: 1000,
+		maxPending: maxPending,
+		store:      store,
+		startTime:  time.Now(),
 	}
 }

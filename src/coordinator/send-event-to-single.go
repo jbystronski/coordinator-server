@@ -1,12 +1,13 @@
 package coordinator
 
 import (
+	"coordinator/src/event"
 	"encoding/json"
 	"log"
 	"time"
 )
 
-func (c *Coordinator) SendEventToSingle(ev Event) int {
+func (c *Coordinator) SendEventToSingle(ev event.Event) int {
 	nodeIDs := make([]string, 0, len(c.nodes))
 	for id := range c.nodes {
 		nodeIDs = append(nodeIDs, id)
@@ -31,14 +32,14 @@ func (c *Coordinator) SendEventToSingle(ev Event) int {
 		client := c.nodes[nodeID]
 
 		select {
-		case client.send <- data:
+		case client.Send <- data:
 			c.lastIndex = (idx + 1) % n
 			log.Println("Event", ev.ID, "sent to node", nodeID)
-			if ev.Delivery == Single {
+			if ev.Delivery == event.Single {
 				if c.inFlight == nil {
-					c.inFlight = make(map[string]InFlightEvent)
+					c.inFlight = make(map[string]event.InFlightEvent)
 				}
-				c.inFlight[ev.ID] = InFlightEvent{
+				c.inFlight[ev.ID] = event.InFlightEvent{
 					Event:  ev,
 					NodeID: nodeID,
 					SentAt: time.Now(),

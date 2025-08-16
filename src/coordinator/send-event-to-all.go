@@ -1,11 +1,12 @@
 package coordinator
 
 import (
+	"coordinator/src/event"
 	"encoding/json"
 	"log"
 )
 
-func (c *Coordinator) SendEventToAll(ev Event) int {
+func (c *Coordinator) SendEventToAll(ev event.Event) int {
 	data, err := json.Marshal(ev)
 	if err != nil {
 		log.Println("failed to marshal event:", err)
@@ -15,7 +16,7 @@ func (c *Coordinator) SendEventToAll(ev Event) int {
 	sent := 0
 	for nodeID, client := range c.nodes {
 		select {
-		case client.send <- data:
+		case client.Send <- data:
 			sent++
 		default:
 			log.Println("send channel full, dropping event for node", nodeID)

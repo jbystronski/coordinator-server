@@ -1,10 +1,13 @@
 package main
 
 import (
-	"coordinator-v0/src/coordinator"
+	"coordinator/src/coordinator"
+	"coordinator/src/event"
+	"coordinator/src/middleware"
+	"coordinator/src/utils"
 	"log"
 	"net/http"
-	"time"
+	"os"
 
 	"github.com/gorilla/websocket"
 )
@@ -14,16 +17,25 @@ var upgrader = websocket.Upgrader{
 }
 
 func main() {
-	// ctx := context.Background()
-	coordinator := coordinator.NewCoordinator(&upgrader)
-	go coordinator.CleanupPendingLoop(10 * time.Minute)
+	store, err := event.NewEventStore("coordinator_events.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer store.Close()
+	apiKey := os.Getenv("COORDINATOR_API_KEY")
+
+	coordinator := coordinator.NewCoordinator(&upgrader, store)
+
+	coordinator.StartTrimScheduler(utils.GetIntEnv("COORDINATOR_TRIM_KEEP_COUNT", 500), coordinator.GetTrimIntervalInMinutes())
+
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	})
 
-	http.HandleFunc("/ws", coordinator.HandleWS)
-	http.HandleFunc("/nodes", coordinator.HandleNodes)
-	http.HandleFunc("/events", coordinator.HandleEvents)
+	http.Handle("/ws", middleware.AuthorizeByToken(apiKey, http.HandlerFunc(coordinator.HandleWS)))
+	http.Handle("/nodes", middleware.AuthorizeByToken(apiKey, http.HandlerFunc(coordinator.HandleNodes)))
+	http.Handle("/events", middleware.AuthorizeByToken(apiKey, http.HandlerFunc(coordinator.HandleEvents)))
+	http.Handle("/stats", middleware.AuthorizeByToken(apiKey, http.HandlerFunc(coordinator.HandleStats)))
 
 	log.Println("Coordinator v0 running on :8090")
 	log.Fatal(http.ListenAndServe(":8090", nil))
