@@ -3,12 +3,16 @@ package coordinator
 import (
 	"encoding/json"
 	"log"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 func (c *Coordinator) forwardToNode(msg NodeMessage) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
+	msg.CreatedOn = time.Now()
+	msg.MessageID = uuid.New().String()
 	target, ok := c.nodes[msg.ToNode]
 	if !ok {
 		log.Printf("Target node %s not connected, cannot deliver message from %s", msg.ToNode, msg.FromNode)

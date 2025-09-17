@@ -22,10 +22,11 @@ type Coordinator struct {
 }
 
 type NodeMessage struct {
-	Type     string `json:"type"`
-	FromNode string `json:"fromNode"`
-	ToNode   string `json:"toNode"`
-	EventID  string `json:"eventId,omitempty"`
-	Payload  string `json:"payload"`
-	Delivery string `json:"delivery,omitempty"`
+	Type      string    `json:"type"`
+	FromNode  string    `json:"fromNode"`
+	ToNode    string    `json:"toNode"`
+	MessageID string    `json:"messageId,omitempty"`
+	Payload   string    `json:"payload"`
+	Delivery  string    `json:"delivery,omitempty"`
+	CreatedOn time.Time `json:"createdOn,omitempty"`
 }

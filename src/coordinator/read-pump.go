@@ -1,10 +1,11 @@
 package coordinator
 
 import (
-	"coordinator/src/node"
 	"encoding/json"
 	"log"
 	"time"
+
+	"coordinator/src/node"
 )
 
 func (c *Coordinator) readPump(client *node.Client) {
@@ -35,7 +36,8 @@ func (c *Coordinator) readPump(client *node.Client) {
 
 		switch m.Type {
 		case "ack":
-			c.handleAck(client.ID, m.EventID)
+			// TODO: m.Message should be fixed, not reading it, though sending ack back
+			c.handleAck(client.ID, m.MessageID)
 		case "nodeMessage":
 			c.forwardToNode(m)
 		}
