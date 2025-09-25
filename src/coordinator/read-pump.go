@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"coordinator/src/event"
 	"coordinator/src/node"
 )
 
@@ -20,6 +21,7 @@ func (c *Coordinator) readPump(client *node.Client) {
 		client.Conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
+
 	for {
 		_, msg, err := client.Conn.ReadMessage()
 		if err != nil {
@@ -27,32 +29,41 @@ func (c *Coordinator) readPump(client *node.Client) {
 			break
 		}
 
-		// var m map[string]string
-		var m NodeMessage
-		if err := json.Unmarshal(msg, &m); err != nil {
-			log.Println("Invalid message from node", client.ID)
+		// Peek type only
+		var peek struct {
+			Type event.EventType `json:"type"`
+		}
+		if err := json.Unmarshal(msg, &peek); err != nil {
+			log.Printf("Invalid event from node %s: %v\n", client.ID, err)
 			continue
 		}
 
-		switch m.Type {
-		case "ack":
-			// TODO: m.Message should be fixed, not reading it, though sending ack back
-			c.handleAck(client.ID, m.MessageID)
-		case "nodeMessage":
-			c.forwardToNode(m)
+		switch peek.Type {
+
+		case event.Ping:
+			var e event.Event[event.PingPayload]
+			if err := json.Unmarshal(msg, &e); err != nil {
+				log.Printf("Failed to parse Ping from %s: %v", client.ID, err)
+				continue
+			}
+			// Optional: reply with a pong (or log it)
+			log.Printf("Received ping from %s at %s", client.ID, e.Payload.Timestamp)
+
+		case event.ACK:
+			var e event.Event[event.AckPayload]
+			if err := json.Unmarshal(msg, &e); err != nil {
+				log.Printf("Failed to parse ACK from %s: %v", client.ID, err)
+				continue
+			}
+			c.handleAck(client.ID, e.Payload.AckedEventID)
+
+		case event.NodeMessage:
+			var e event.Event[event.NodeMessageEventPayload]
+			if err := json.Unmarshal(msg, &e); err != nil {
+				log.Printf("Failed to parse NodeMessage from %s: %v", client.ID, err)
+				continue
+			}
+			c.forwardToNode(e)
 		}
-
-		// if m["type"] == "ack" {
-		// 	eventID := m["eventId"]
-		//
-		// 	c.mu.Lock()
-		// 	inflight, ok := c.inFlight[eventID]
-		// 	if ok && inflight.Event.Delivery == event.Single {
-		// 		delete(c.inFlight, eventID)
-		// 		log.Printf("ACK received for event %s from node %s", eventID, client.ID)
-		// 	}
-		// 	c.mu.Unlock()
-		// }
-
 	}
 }

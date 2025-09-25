@@ -1,10 +1,11 @@
 package coordinator
 
 import (
-	"coordinator/src/event"
-	"coordinator/src/node"
 	"sync"
 	"time"
+
+	"coordinator/src/event"
+	"coordinator/src/node"
 
 	"github.com/gorilla/websocket"
 )
@@ -13,20 +14,10 @@ type Coordinator struct {
 	mu         sync.Mutex
 	nodes      map[string]*node.Client
 	upgrader   *websocket.Upgrader
-	pending    []event.Event
-	inFlight   map[string]event.InFlightEvent
+	pending    []event.Event[any]
+	inFlight   map[string]event.InFlightEvent[any]
 	lastIndex  int
 	maxPending int
 	store      *event.Store
 	startTime  time.Time
-}
-
-type NodeMessage struct {
-	Type      string    `json:"type"`
-	FromNode  string    `json:"fromNode"`
-	ToNode    string    `json:"toNode"`
-	MessageID string    `json:"messageId,omitempty"`
-	Payload   string    `json:"payload"`
-	Delivery  string    `json:"delivery,omitempty"`
-	CreatedOn time.Time `json:"createdOn,omitempty"`
 }

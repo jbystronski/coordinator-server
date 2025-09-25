@@ -1,10 +1,11 @@
 package coordinator
 
 import (
-	"coordinator/src/event"
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"coordinator/src/event"
 )
 
 func (c *Coordinator) HandleEvents(w http.ResponseWriter, r *http.Request) {
@@ -13,7 +14,7 @@ func (c *Coordinator) HandleEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var incoming event.Event
+	var incoming event.Event[any]
 	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
@@ -25,7 +26,7 @@ func (c *Coordinator) HandleEvents(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"status": "queued",
-		"id":     eventId,
+		"status":  "queued",
+		"eventId": eventId,
 	})
 }

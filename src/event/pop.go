@@ -8,8 +8,8 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-func (s *Store) Pop(now time.Time) (*Event, error) {
-	var out *Event
+func (s *Store) Pop(now time.Time) (*Event[any], error) {
+	var out *Event[any]
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("events"))
 		if b == nil {
@@ -17,7 +17,7 @@ func (s *Store) Pop(now time.Time) (*Event, error) {
 		}
 		c := b.Cursor()
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var ev Event
+			var ev Event[any]
 			if err := json.Unmarshal(v, &ev); err != nil {
 				// Corrupt entry → drop it and continue
 				if delErr := b.Delete(k); delErr != nil {

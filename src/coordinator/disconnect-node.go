@@ -16,14 +16,14 @@ func (c *Coordinator) disconnectNode(nodeId string) {
 	}
 
 	// Requeue unacknowledged events sent to this node
-	for id, inflight := range c.inFlight {
+	for eventId, inflight := range c.inFlight {
 		if inflight.NodeID == nodeId {
 			if queued, _ := c.enqueueEventLocked(inflight.Event); queued {
-				log.Println("Requeued event", id, "in memory after node disconnect", nodeId)
+				log.Println("Requeued event", eventId, "in memory after node disconnect", nodeId)
 			} else {
-				log.Println("Requeued event", id, "saved to store after node disconnect", nodeId)
+				log.Println("Requeued event", eventId, "saved to store after node disconnect", nodeId)
 			}
-			delete(c.inFlight, id)
+			delete(c.inFlight, eventId)
 
 		}
 	}

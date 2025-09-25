@@ -1,12 +1,13 @@
 package coordinator
 
 import (
-	"coordinator/src/event"
 	"encoding/json"
 	"log"
+
+	"coordinator/src/event"
 )
 
-func (c *Coordinator) SendEventToAll(ev event.Event) int {
+func (c *Coordinator) SendEventToAll(ev event.Event[any]) int {
 	data, err := json.Marshal(ev)
 	if err != nil {
 		log.Println("failed to marshal event:", err)
@@ -23,7 +24,7 @@ func (c *Coordinator) SendEventToAll(ev event.Event) int {
 		}
 	}
 	if sent == 0 {
-		log.Println("All nodes busy, event dropped:", ev.ID)
+		log.Println("All nodes busy, event dropped:", ev.EventID)
 	}
 	return sent
 }

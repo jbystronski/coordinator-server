@@ -1,14 +1,15 @@
 package event
 
 import (
-	"coordinator/src/utils"
 	"encoding/json"
 	"fmt"
+
+	"coordinator/src/utils"
 
 	"go.etcd.io/bbolt"
 )
 
-func (s *Store) Put(ev Event) error {
+func (s *Store) Put(ev Event[any]) error {
 	data, err := json.Marshal(ev)
 	if err != nil {
 		return err

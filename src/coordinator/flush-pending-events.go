@@ -1,11 +1,12 @@
 package coordinator
 
 import (
-	"coordinator/src/event"
-	"coordinator/src/node"
 	"encoding/json"
 	"log"
 	"time"
+
+	"coordinator/src/event"
+	"coordinator/src/node"
 )
 
 func (c *Coordinator) flushPendingToNode(client *node.Client) {
@@ -21,23 +22,23 @@ func (c *Coordinator) flushPendingToNode(client *node.Client) {
 		case client.Send <- data:
 			if ev.Delivery == event.Single {
 				if c.inFlight == nil {
-					c.inFlight = make(map[string]event.InFlightEvent)
+					c.inFlight = make(map[string]event.InFlightEvent[any])
 				}
-				c.inFlight[ev.ID] = event.InFlightEvent{
+				c.inFlight[ev.EventID] = event.InFlightEvent[any]{
 					Event:  *ev,
 					NodeID: client.ID,
 					SentAt: time.Now(),
 				}
-				go c.waitForAck(ev.ID, 15*time.Second)
+				go c.waitForAck(ev.EventID, 15*time.Second)
 			}
-			log.Println("Flushed event", ev.ID, "to node", client.ID)
+			log.Println("Flushed event", ev.EventID, "to node", client.ID)
 		default:
 
 			queued, _ := c.enqueueEventLocked(*ev)
 			if queued {
-				log.Println("Pending event", ev.ID, "requeued in memory due to full channel")
+				log.Println("Pending event", ev.EventID, "requeued in memory due to full channel")
 			} else {
-				log.Println("Pending event", ev.ID, "saved to store due to full channel")
+				log.Println("Pending event", ev.EventID, "saved to store due to full channel")
 			}
 
 		}
