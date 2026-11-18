@@ -7,4 +7,5 @@ type Client struct {
 	Name string
 	Conn *websocket.Conn
 	Send chan []byte
+	IsMaster bool
 }

@@ -5,56 +5,39 @@ import "time"
 type EventType string
 
 const (
-	ACK         EventType = "Ack"
-	NodeMessage EventType = "NodeMessage"
-	Ping        EventType = "Ping"
+	ACK           EventType = "Ack"
+	Ping          EventType = "Ping"
+	MasterSet     EventType = "MasterSet"
 )
+
+type Meta struct {
+	Timestamp      time.Time     `json:"timestamp"`
+	TTL            time.Duration `json:"ttl"`
+	Delivery       DeliveryMode  `json:"deliveryType"`
+	ID             string        `json:"id"`
+	Status         string        `json:"status"`
+	OriginNodeID string `json:"originNodeId,omitempty"`
+	Targets []string `json:"targets"`
+
+}
 
 type Event[T any] struct {
-	EventID   string        `json:"eventId"`
-	Type      EventType     `json:"type"`
-	Payload   T             `json:"payload"`
-	Delivery  DeliveryMode  `json:"delivery"`
-	CreatedAt time.Time     `json:"createdAt"`
-	TTL       time.Duration `json:"ttl"`
+	Meta    Meta      `json:"meta"`
+	Type    EventType `json:"type"`
+	Payload T         `json:"payload"`
 }
 
-type NodeMessageDirection string
-
-const (
-	Out NodeMessageDirection = "out"
-	In  NodeMessageDirection = "in"
-)
-
-type NodeMessageContentType string
-
-const (
-	NodeTextMessage = "text"
-	NodeFileMessage = "file"
-)
-
-type NodeMessageContent struct {
-	Type     NodeMessageContentType `json:"type"`
-	Content  string                 `json:"content"`
-	MimeType string                 `json:"mime,omitempty"`
-}
-
-type NodeMessageEventPayload struct {
-	FromNode     string               `json:"fromNode"`
-	FromNodeName string               `json:"fromNodeName,omitempty"`
-	ToNode       string               `json:"toNode"`
-	Direction    NodeMessageDirection `json:"direction"`
-	MessageID    string               `json:"messageId,omitempty"`
-	Message      NodeMessageContent   `json:"message"`
-	CreatedAt    time.Time            `json:"createdAt"`
-	ReceivedAt   time.Time            `json:"receivedAt,omitempty"`
-}
 
 // AckPayload is the payload for Ack events.
 type AckPayload struct {
 	AckedEventID string `json:"ackedEventId"`
 	// Status       string `json:"status"`
 }
+
+type MasterSetPayload struct {
+	NodeID string `json:"nodeId"`
+}
+
 
 type PingPayload struct {
 	Timestamp time.Time `json:"timestamp"`

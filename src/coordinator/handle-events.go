@@ -15,18 +15,30 @@ func (c *Coordinator) HandleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var incoming event.Event[any]
+
 	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
+		log.Printf("Decode event JSON failed: %v", err)
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	// Broadcast to all connected nodes
-	count, eventId := c.SendEvent(incoming) // <-- returns number of nodes message was sent to
-	log.Printf("Event %s broadcasted to %d nodes\n", eventId, count)
+	count, eventID, err := c.SendEvent(incoming)
+
+	if err != nil {
+		log.Printf("Failed to accept event %s: %v", eventID, err)
+		http.Error(w, "failed to queue event", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Event %s sent to %d nodes", eventID, count)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "queued",
-		"eventId": eventId,
-	})
+	w.WriteHeader(http.StatusAccepted)
+
+	if err := json.NewEncoder(w).Encode(map[string]string{
+		"status":  "accepted",
+		"eventId": eventID,
+	}); err != nil {
+		log.Printf("Failed to write event response: %v", err)
+	}
 }

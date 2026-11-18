@@ -8,17 +8,21 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+
+
+
 func (c *Coordinator) writePump(client *node.Client) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		c.disconnectNode(client.ID)
-		client.Conn.Close()
+		c.disconnectNode(client)
+
 	}()
 
 	for {
 		select {
 		case msg, ok := <-client.Send:
+
 			client.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// Channel closed — send close frame

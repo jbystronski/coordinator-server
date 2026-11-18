@@ -21,5 +21,6 @@ func NewCoordinator(upgrader *websocket.Upgrader, store *event.Store) *Coordinat
 		maxPending: maxPending,
 		store:      store,
 		startTime:  time.Now(),
+		wsTickets: NewWSTicketStore(),
 	}
 }

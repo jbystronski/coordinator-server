@@ -26,7 +26,7 @@ func (s *Store) Pop(now time.Time) (*Event[any], error) {
 				continue
 			}
 			// TTL check (optional, but handy here)
-			if !ev.CreatedAt.IsZero() && ev.TTL > 0 && now.After(ev.CreatedAt.Add(ev.TTL)) {
+			if !ev.Meta.Timestamp.IsZero() && ev.Meta.TTL > 0 && now.After(ev.Meta.Timestamp.Add(ev.Meta.TTL)) {
 				// Expired → drop and continue
 				if delErr := b.Delete(k); delErr != nil {
 					return delErr

@@ -6,20 +6,22 @@ import (
 	"time"
 
 	"coordinator/src/event"
+	"coordinator/src/node"
 )
 
-func (c *Coordinator) SendEventToSingle(ev event.Event[any]) int {
-	nodeIDs := make([]string, 0, len(c.nodes))
-	for id := range c.nodes {
-		nodeIDs = append(nodeIDs, id)
-	}
-	n := len(nodeIDs)
+
+func (c *Coordinator) SendEventToSingle(ev event.Event[any],clients []*node.Client) int {
+
+
+	n := len(clients)
 
 	if n == 0 {
-		// This case should never happen if SendEvent checks before calling
 		return 0
 	}
+
+	c.mu.Lock()
 	start := c.lastIndex % n
+	c.mu.Unlock()
 
 	data, err := json.Marshal(ev)
 	if err != nil {
@@ -27,34 +29,74 @@ func (c *Coordinator) SendEventToSingle(ev event.Event[any]) int {
 		return 0
 	}
 
+	requiresAck := ev.Meta.Delivery == event.Single
+
+
+
+
 	for i := range n {
 		idx := (start + i) % n
-		nodeID := nodeIDs[idx]
-		client := c.nodes[nodeID]
+		client := clients[idx]
+		nodeID := client.ID
+
+		// Register BEFORE making the event available to the WebSocket writer.
+		sentAt := time.Now()
+
+		if requiresAck {
+			c.mu.Lock()
+
+			if c.inFlight == nil {
+				c.inFlight = make(map[string]event.InFlightEvent[any])
+			}
+
+			c.inFlight[ev.Meta.ID] = event.InFlightEvent[any]{
+				Event:  ev,
+				NodeID: nodeID,
+				SentAt: sentAt,
+			}
+
+			c.mu.Unlock()
+		}
 
 		select {
 		case client.Send <- data:
+			c.mu.Lock()
 			c.lastIndex = (idx + 1) % n
-			log.Println("Event", ev.EventID, "sent to node", nodeID)
-			if ev.Delivery == event.Single {
-				if c.inFlight == nil {
-					c.inFlight = make(map[string]event.InFlightEvent[any])
-				}
-				c.inFlight[ev.EventID] = event.InFlightEvent[any]{
-					Event:  ev,
-					NodeID: nodeID,
-					SentAt: time.Now(),
-				}
-				go c.waitForAck(ev.EventID, 15*time.Second)
+			c.mu.Unlock()
+
+			log.Printf(
+				"Event %s sent to node %s",
+				ev.Meta.ID,
+				nodeID,
+			)
+
+			if requiresAck {
+				go c.waitForAck(ev.Meta.ID, 15*time.Second)
 			}
+
 			return 1
+
 		default:
-			// node busy, try next
+			// The channel is full. Remove this attempted registration
+			// before trying the next node.
+			if requiresAck {
+				c.mu.Lock()
+
+				if inflight, ok := c.inFlight[ev.Meta.ID]; ok &&
+					inflight.NodeID == nodeID &&
+					inflight.SentAt.Equal(sentAt) {
+					delete(c.inFlight, ev.Meta.ID)
+				}
+
+				c.mu.Unlock()
+			}
 		}
 	}
 
-	// All nodes busy, queue for later
+	log.Printf(
+		"All matching nodes are busy for event %s",
+		ev.Meta.ID,
+	)
 
-	log.Println("All nodes busy, event queued:", ev.EventID)
 	return 0
 }

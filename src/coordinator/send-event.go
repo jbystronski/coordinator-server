@@ -6,25 +6,60 @@ import (
 	"coordinator/src/event"
 )
 
-func (c *Coordinator) SendEvent(ev event.Event[any]) (int, string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 
-	if len(c.nodes) == 0 {
-		_, eventId := c.enqueueEventLocked(ev)
-		return 0, eventId
+func (c *Coordinator) SendEvent(
+	ev event.Event[any],
+) (int, string, error) {
+	if len(ev.Meta.Targets) == 0 {
+		log.Printf(
+			"Event %s has no addressing information; dropping",
+			ev.Meta.ID,
+		)
+		return 0, ev.Meta.ID, nil
 	}
 
-	var count int
-	switch ev.Delivery {
-	case event.Broadcast:
-		count = c.SendEventToAll(ev)
-	case event.Single:
-		count = c.SendEventToSingle(ev)
+	switch ev.Meta.Delivery {
+	case event.Single, event.Broadcast:
+		// Valid delivery modes.
 	default:
-		log.Println("unknown delivery mode, defaulting to broadcast")
-		count = c.SendEventToAll(ev)
+		log.Printf(
+			"Unknown delivery mode %q for event %s",
+			ev.Meta.Delivery,
+			ev.Meta.ID,
+		)
+		return 0, ev.Meta.ID, nil
 	}
 
-	return count, ev.EventID
+	clients := c.matchingNodes(
+		ev.Meta.Targets,
+	)
+
+	if ev.Meta.Delivery == event.Broadcast {
+		if len(clients) == 0 {
+			return 0, ev.Meta.ID,nil
+		}
+
+		return c.SendEventToAll(ev, clients), ev.Meta.ID,nil
+	}
+
+	// Single: retain until an eligible node can receive it.
+	if len(clients) == 0 {
+		c.mu.Lock()
+		_, eventID,err := c.enqueueEventLocked(ev)
+		c.mu.Unlock()
+
+		return 0, eventID,err
+	}
+
+	count := c.SendEventToSingle(ev, clients)
+
+	if count == 0 {
+		c.mu.Lock()
+		_, eventID,err := c.enqueueEventLocked(ev)
+		c.mu.Unlock()
+
+		return 0, eventID,err
+	}
+
+	return count, ev.Meta.ID, nil
 }

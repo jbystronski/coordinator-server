@@ -5,26 +5,34 @@ import (
 	"log"
 
 	"coordinator/src/event"
+	"coordinator/src/node"
 )
 
-func (c *Coordinator) SendEventToAll(ev event.Event[any]) int {
+
+
+
+func (c *Coordinator) SendEventToAll(ev event.Event[any], clients []*node.Client) int {
 	data, err := json.Marshal(ev)
 	if err != nil {
 		log.Println("failed to marshal event:", err)
 		return 0
 	}
 
+
 	sent := 0
-	for nodeID, client := range c.nodes {
+
+	for _, client := range clients {
 		select {
 		case client.Send <- data:
 			sent++
 		default:
-			log.Println("send channel full, dropping event for node", nodeID)
+			log.Printf(
+				"Send channel full; event %s not sent to node %s",
+				ev.Meta.ID,
+				client.ID,
+			)
 		}
 	}
-	if sent == 0 {
-		log.Println("All nodes busy, event dropped:", ev.EventID)
-	}
+
 	return sent
 }

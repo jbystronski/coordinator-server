@@ -3,6 +3,7 @@ package coordinator
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 )
 
 func (c *Coordinator) HandleNodes(w http.ResponseWriter, r *http.Request) {
@@ -14,6 +15,8 @@ func (c *Coordinator) HandleNodes(w http.ResponseWriter, r *http.Request) {
 		nodeList = append(nodeList, map[string]string{
 			"id":   node.ID,
 			"name": node.Name,
+			"isMaster": strconv.FormatBool(node.IsMaster),
+
 		})
 	}
 

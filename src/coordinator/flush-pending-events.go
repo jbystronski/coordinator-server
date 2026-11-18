@@ -9,38 +9,80 @@ import (
 	"coordinator/src/node"
 )
 
-func (c *Coordinator) flushPendingToNode(client *node.Client) {
+
+
+
+func (c *Coordinator) flushPendingToNodeLocked(
+	client *node.Client,
+) {
 	for {
-		ev := c.dequeueEventLocked() // dequeues from pending and refills from store
+		ev := c.dequeueEventForNodeLocked(client)
 		if ev == nil {
-			break
+			return
 		}
 
-		data, _ := json.Marshal(ev)
+		// Only Single events belong in the pending queue.
+		// Remove stale queued broadcasts rather than leaving them
+		// stranded until their TTL expires.
+		if ev.Meta.Delivery != event.Single {
+			log.Printf(
+				"Discarding non-Single event %s from pending queue",
+				ev.Meta.ID,
+			)
+			continue
+		}
+
+		data, err := json.Marshal(ev)
+		if err != nil {
+			log.Printf(
+				"Failed to marshal event %s: %v",
+				ev.Meta.ID,
+				err,
+			)
+
+			c.enqueueEventLocked(*ev)
+			return
+		}
+
+		sentAt := time.Now()
+
+		// Register before making the event available to writePump.
+		if c.inFlight == nil {
+			c.inFlight = make(map[string]event.InFlightEvent[any])
+		}
+
+		c.inFlight[ev.Meta.ID] = event.InFlightEvent[any]{
+			Event:  *ev,
+			NodeID: client.ID,
+			SentAt: sentAt,
+		}
 
 		select {
 		case client.Send <- data:
-			if ev.Delivery == event.Single {
-				if c.inFlight == nil {
-					c.inFlight = make(map[string]event.InFlightEvent[any])
-				}
-				c.inFlight[ev.EventID] = event.InFlightEvent[any]{
-					Event:  *ev,
-					NodeID: client.ID,
-					SentAt: time.Now(),
-				}
-				go c.waitForAck(ev.EventID, 15*time.Second)
-			}
-			log.Println("Flushed event", ev.EventID, "to node", client.ID)
+			log.Printf(
+				"Flushed event %s to node %s",
+				ev.Meta.ID,
+				client.ID,
+			)
+
+			go c.waitForAck(ev.Meta.ID, 15*time.Second)
+
 		default:
-
-			queued, _ := c.enqueueEventLocked(*ev)
-			if queued {
-				log.Println("Pending event", ev.EventID, "requeued in memory due to full channel")
-			} else {
-				log.Println("Pending event", ev.EventID, "saved to store due to full channel")
+			// The node's send buffer is full. Undo this registration
+			// and retain the event for a later attempt.
+			if inflight, ok := c.inFlight[ev.Meta.ID]; ok &&
+				inflight.NodeID == client.ID &&
+				inflight.SentAt.Equal(sentAt) {
+				delete(c.inFlight, ev.Meta.ID)
 			}
 
+			c.enqueueEventLocked(*ev)
+
+			log.Printf(
+				"Node send channel full; requeued event %s",
+				ev.Meta.ID,
+			)
+			return
 		}
 	}
 }

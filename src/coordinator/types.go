@@ -20,4 +20,5 @@ type Coordinator struct {
 	maxPending int
 	store      *event.Store
 	startTime  time.Time
+		wsTickets *WSTicketStore
 }
